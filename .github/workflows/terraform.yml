@@ -1,0 +1,89 @@
+# Nome do workflow do Terraform, é um arquivo reutilizável, vamos utilizar para cada ambiente.
+name: "Terraform Workflow"
+
+on:
+    workflow_call:
+        inputs:
+        environment:
+            required: true
+            type: string
+            description: "Quem chamar esse workflow vai ter que passar isso"
+        aws-assume-role-arn:
+            required: true
+            type: string
+            description: "Quem chamar esse workflow vai ter que passar isso"
+        aws-region:
+            required: true
+            type: string
+            description: "Quem chamar esse workflow vai ter que passar isso"
+        aws-statefile-s3-bucket:
+            required: true
+            type: string
+            description: "Quem chamar esse workflow vai ter que passar isso"
+        aws-lock-dynamodb-table:
+            required: true
+            type: string
+            description: "Quem chamar esse workflow vai ter que passar isso"
+
+# O que nossa pipeline vai executar aqui no github actions
+jobs:
+    terraform:
+      # configuração de como o runner do github vai ser de fato setado
+        runs-on: ubuntu-latest #O step vai rodar em uma máquina virtual ubuntu
+        defaults:
+            run:
+              shell: bash #O step vai rodar em um shell bash
+
+        # os passos que a pipeline vai executar
+        steps:
+            - name: Checkout code # faz o processo de git clone
+              uses: actions/checkout@v2 # reusando o checkout do código
+
+            - name: Setup Terraform # configura o terraform cli
+              uses: hashicorp/setup-terraform@v3 # reusando a ação do hashicorp
+              with:
+                terraform_version: 1.8.3 # versão do terraform que queremos usar
+
+            - name: Configure AWS credentials # configura as credenciais da AWS
+              uses: aws-actions/configure-aws-credentials@v4 # reusando a ação do aws
+              with:
+                role-to-assume: ${{ inputs.aws-assume-role-arn }} # Assume role são as funções que criamos na AWS
+                role-session-name: GitHub_to_AWS_via_FederatedOIDC # nome da sessão que queremos criar, você pode colocar o que quiser
+                aws-region: ${{ inputs.aws-region }} # região da AWS que queremos usar
+
+            - name: Read destroy configuration
+              id: read-destroy-config
+              run: |
+                DESTROY="$(jq -r '.${{ inputs.environment }}' ./infra/destroy_config.json)"
+                echo "destroy=$(echo $DESTROY)" >> $GITHUB_OUTPUT
+
+            # O que ele faz.
+            # Faz cd infra entra na pasta infra do projeto
+            # depois ele roda o comando terraform init e passa as configurações do backend (depois do \)
+            # Ou seja, lá no projeto temos o arquivo backend.tf e o terraform init vai ler esse arquivo e dentro dá pipeline
+            # ele vai sobrescrever as variáveis que estão dentro do backend.tf
+            - name: Terraform init
+              run: |
+                cd infra && terraform init \
+                  -backend-config="bucket=${{ inputs.aws-statefile-s3-bucket }}" \
+                  -backend-config="key=${{ github.event.repository.name }}" \
+                  -backend-config="region=${{ inputs.aws-region }}" \
+                  -backend-config="dynamodb_table=${{ inputs.aws-lock-dynamodb-table }}" \
+
+            # Não precisa dar o cd já que no step anterior já foi feito
+            - name: Terraform Validade
+              run: terraform validate
+
+            - name: Terraform Plan
+              if: steps.read-destroy-config.outputs.destroy != 'true'
+              id: terraform-plan
+              run: cd infra &&
+                terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
+                terraform plan -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -out="${{ inputs.environment }}.plan"
+
+            - name: Terraform Apply
+              if: steps.read-destroy-config.outputs.destroy != 'true'
+              id: terraform-apply
+              run: cd infra &&
+                terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
+                terraform apply "${{ inputs.environment }}.plan"
