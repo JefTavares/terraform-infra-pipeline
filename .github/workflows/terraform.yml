@@ -2,28 +2,28 @@
 name: "Terraform Workflow"
 
 on:
-    workflow_call:
-        inputs:
-        environment:
-            required: true
-            type: string
-            description: "Quem chamar esse workflow vai ter que passar isso"
-        aws-assume-role-arn:
-            required: true
-            type: string
-            description: "Quem chamar esse workflow vai ter que passar isso"
-        aws-region:
-            required: true
-            type: string
-            description: "Quem chamar esse workflow vai ter que passar isso"
-        aws-statefile-s3-bucket:
-            required: true
-            type: string
-            description: "Quem chamar esse workflow vai ter que passar isso"
-        aws-lock-dynamodb-table:
-            required: true
-            type: string
-            description: "Quem chamar esse workflow vai ter que passar isso"
+  workflow_call:
+    inputs:
+      environment:
+          required: true
+          type: string
+          description: "Quem chamar esse workflow vai ter que passar isso"
+      aws-assume-role-arn:
+          required: true
+          type: string
+          description: "Quem chamar esse workflow vai ter que passar isso"
+      aws-region:
+          required: true
+          type: string
+          description: "Quem chamar esse workflow vai ter que passar isso"
+      aws-statefile-s3-bucket:
+          required: true
+          type: string
+          description: "Quem chamar esse workflow vai ter que passar isso"
+      aws-lock-dynamodb-table:
+          required: true
+          type: string
+          description: "Quem chamar esse workflow vai ter que passar isso"
 
 # O que nossa pipeline vai executar aqui no github actions
 jobs:

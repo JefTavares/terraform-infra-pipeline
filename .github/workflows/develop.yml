@@ -5,7 +5,7 @@ on:
     branches:
       - develop #em caso de push para a branch develop
 
-# Obrigatorio para fazer o assume role
+# Obrigatório para fazer o assume role
 permissions:
   id-token: write
   contents: read
