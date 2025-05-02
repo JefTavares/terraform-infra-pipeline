@@ -15,14 +15,6 @@ resource "aws_instance" "jef_mongodb" {
   instance_type = "t2.micro"
   vpc_security_group_ids = [aws_security_group.security_group_mongodb.id]
 
-  user_data = <<-EOF
-              #!/bin/bash
-              sudo apt-get update
-              sudo apt-get install -y mongodb
-              sudo systemctl start mongodb
-              sudo systemctl enable mongodb
-              EOF
-
 }
 
 resource "aws_security_group" "security_group_mongodb" {
@@ -32,6 +24,13 @@ resource "aws_security_group" "security_group_mongodb" {
   ingress {
     from_port   = 27017
     to_port     = 27017
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
